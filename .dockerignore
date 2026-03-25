@@ -1,0 +1,7 @@
+.git
+uploads
+outputs
+*.md
+.env
+.idea
+.vscode

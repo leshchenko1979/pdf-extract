@@ -1,0 +1,34 @@
+services:
+  pdf-extract:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: pdf-extract
+    restart: unless-stopped
+    mem_limit: 256mb
+    cpus: 0.5
+    mem_reservation: 32mb
+    environment:
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL in .env}
+      PORT: "8000"
+      MAX_UPLOAD_BYTES: "33554432"
+      MAX_DOWNLOAD_BYTES: "33554432"
+      HTTP_FETCH_TIMEOUT: "120s"
+      FILE_TTL: "1h"
+      RENDER_DPI: "150"
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=false"
+      - "sablier.managed=true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health >/dev/null 2>&1 || exit 1"]
+      start_period: 15s
+      start_interval: 1s
+      interval: 30s
+      timeout: 5s
+      retries: 2
+
+networks:
+  traefik-public:
+    external: true

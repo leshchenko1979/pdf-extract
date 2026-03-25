@@ -1,0 +1,162 @@
+openapi: 3.0.3
+info:
+  title: pdf-extract API
+  version: 1.0.0
+  description: PDF text extraction and optional stitched PNG (Poppler).
+servers:
+  - url: https://example.com
+paths:
+  /v1/process:
+    post:
+      summary: Process PDF from URL (JSON) or upload (multipart)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessJSONRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                options:
+                  type: string
+                  description: JSON string, same shape as ProcessJSONRequest.options
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessResponse'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Payload too large
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Unsupported media type
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/files/{id}:
+    get:
+      summary: Download generated PNG
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: PNG image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  schemas:
+    ProcessJSONRequest:
+      type: object
+      required: [source]
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceURL'
+        options:
+          $ref: '#/components/schemas/Options'
+    SourceURL:
+      type: object
+      required: [type, url]
+      properties:
+        type:
+          type: string
+          enum: [url]
+        url:
+          type: string
+          format: uri
+    Options:
+      type: object
+      properties:
+        render_image:
+          type: boolean
+          description: When false, only text is returned (default false).
+        crop_margins:
+          type: boolean
+          description: Crop white margins on PNG; only if render_image true (default true).
+    ProcessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        text:
+          type: string
+        image:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ImageRef'
+    ImageRef:
+      type: object
+      required: [id, url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+        status:
+          type: integer
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+        uploads_count:
+          type: integer
+        outputs_count:
+          type: integer
+        total_count:
+          type: integer
