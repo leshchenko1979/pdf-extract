@@ -112,7 +112,16 @@ curl -sS -X POST "$BASE/v1/process" \
 docker compose up --build -d
 ```
 
-Образ включает `poppler-utils`. Для Traefik задайте лимит тела запроса не ниже `MAX_UPLOAD_BYTES`.
+Образ включает `poppler-utils`.
+
+### Traefik (ops3)
+
+В репозитории инфраструктуры VDS:
+
+- `servers/3 - apps/services/traefik/config/sablier-apps.yml` — хост **`pdf-extract.l1979.ru`**, пути `/health`, `/v1/health`, префикс `/v1` (Sablier + бэкенд `http://pdf-extract:8000`).
+- `servers/3 - apps/services/traefik/config/middlewares.yml` — **`pdf-extract-buffering`**: до **32 MiB** тела запроса (как `MAX_UPLOAD_BYTES` по умолчанию).
+
+Нужна DNS-запись **`pdf-extract.l1979.ru`** на IP сервера с Traefik. В контейнере задайте **`PUBLIC_BASE_URL=https://pdf-extract.l1979.ru`**. После правок динамических файлов перезагрузите Traefik или дождитесь подхвата файлов провайдером.
 
 ## Безопасность загрузки по URL
 

@@ -1,0 +1,87 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Deploy to Production",
+            "type": "shell",
+            "command": "./deploy.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "SSH to Remote Server",
+            "type": "shell",
+            "command": "source .env && ssh ${REMOTE_USER}@${REMOTE_HOST_IP}",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Test process URL (text only)",
+            "type": "shell",
+            "command": "set -a && source .env && set +a && curl -sS -X POST \"${PUBLIC_BASE_URL}/v1/process\" -H \"Content-Type: application/json\" -d '{\"source\":{\"type\":\"url\",\"url\":\"${input:pdfUrl}\"},\"options\":{\"render_image\":false}}'",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Test process URL (with PNG)",
+            "type": "shell",
+            "command": "set -a && source .env && set +a && curl -sS -X POST \"${PUBLIC_BASE_URL}/v1/process\" -H \"Content-Type: application/json\" -d '{\"source\":{\"type\":\"url\",\"url\":\"${input:pdfUrl}\"},\"options\":{\"render_image\":true,\"crop_margins\":true}}'",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Debug process URL (verbose)",
+            "type": "shell",
+            "command": "set -a && source .env && set +a && curl -sS -v -X POST \"${PUBLIC_BASE_URL}/v1/process\" -H \"Content-Type: application/json\" -d '{\"source\":{\"type\":\"url\",\"url\":\"${input:pdfUrl}\"},\"options\":{\"render_image\":false}}'",
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "pdfUrl",
+            "type": "promptString",
+            "description": "Public URL of the PDF for POST /v1/process"
+        }
+    ]
+}

@@ -3,3 +3,4 @@
 uploads/
 outputs/
 .DS_Store
+.env
