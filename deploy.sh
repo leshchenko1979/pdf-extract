@@ -1,8 +1,18 @@
 #!/bin/bash
+# Maintainer-only: deploy via SSH/scp to a remote host, then docker compose there.
+# Requires .env with PUBLIC_BASE_URL, REMOTE_USER, and REMOTE_HOST_IP.
 set -e
 
 # Load environment variables
 source .env
+
+if [ -z "${PUBLIC_BASE_URL:-}" ]; then
+    echo "PUBLIC_BASE_URL must be set in .env (same value as in docker-compose)"
+    exit 1
+fi
+# Normalize: no trailing slash (matches app / .env.example)
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL%/}"
+HEALTH_URL="${PUBLIC_BASE_URL}/health"
 
 START_TIME=$(date +%s)
 
@@ -56,7 +66,6 @@ ssh $SSH_OPTS "$REMOTE_USER@$REMOTE_HOST_IP" << ENDSSH
 ENDSSH
 
 echo -e "${MAGENTA}[HEALTH]${NC} Verifying deployment..."
-HEALTH_URL="https://pdf-extract.${REMOTE_HOST_DOMAIN}/health"
 MAX_ATTEMPTS=12
 SLEEP_BETWEEN=5
 sleep 5
@@ -78,4 +87,4 @@ rm -rf "$LOCAL_TEMP_DIR"
 
 ELAPSED=$(($(date +%s) - START_TIME))
 echo -e "${GREEN}[SUCCESS]${NC} Deployment completed in ${ELAPSED}s at $(date '+%Y-%m-%d %H:%M:%S')"
-echo -e "${GREEN}API is available at: https://pdf-extract.${REMOTE_HOST_DOMAIN}${NC}"
+echo -e "${GREEN}API is available at: ${PUBLIC_BASE_URL}${NC}"

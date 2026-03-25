@@ -1,39 +1,39 @@
 # pdf-extract
 
-HTTP-сервис на **Go**: извлечение текста из PDF (без OCR), опционально вертикальная склейка страниц в один **PNG** с обрезкой белых полей. Источник PDF — **публичный URL** (JSON) или **загрузка файла** (`multipart/form-data`).
+HTTP service in **Go**: extract text from PDFs (no OCR), optionally stitch pages vertically into a single **PNG** with white-margin cropping. PDF source is either a **public URL** (JSON) or **file upload** (`multipart/form-data`).
 
-Рендер и текст выполняются через **Poppler** (`pdftotext`, `pdftoppm`) внутри контейнера.
+Rendering and text extraction use **Poppler** (`pdftotext`, `pdftoppm`) inside the container.
 
-## Быстрый старт (локально)
+## Quick start (local)
 
-Требования: Go 1.22+, в `PATH` установлены `poppler` (macOS: `brew install poppler`).
+Requirements: Go 1.26+, `poppler` on `PATH`.
 
 ```bash
 export PUBLIC_BASE_URL=http://localhost:8000
 go run ./cmd/pdf-extract
 ```
 
-## Переменные окружения
+## Environment variables
 
-| Переменная | Обязательно | По умолчанию | Описание |
-|------------|-------------|--------------|----------|
-| `PUBLIC_BASE_URL` | да | — | Публичный origin для абсолютных ссылок на PNG (без завершающего `/`) |
-| `PORT` | нет | `8000` | Порт HTTP |
-| `UPLOAD_DIR` | нет | `uploads` | Каталог временных PDF |
-| `OUTPUT_DIR` | нет | `outputs` | Каталог временных PNG |
-| `MAX_UPLOAD_BYTES` | нет | `33554432` | Лимит тела multipart (32 MiB) |
-| `MAX_DOWNLOAD_BYTES` | нет | `33554432` | Лимит скачивания PDF по URL |
-| `HTTP_FETCH_TIMEOUT` | нет | `120s` | Таймаут исходящего HTTP при загрузке по URL |
-| `FILE_TTL` | нет | `1h` | Через сколько удалить загруженный PDF и PNG |
-| `RENDER_DPI` | нет | `150` | DPI для `pdftoppm` |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PUBLIC_BASE_URL` | yes | — | Public origin for absolute PNG URLs (no trailing `/`) |
+| `PORT` | no | `8000` | HTTP port |
+| `UPLOAD_DIR` | no | `uploads` | Temporary PDF directory |
+| `OUTPUT_DIR` | no | `outputs` | Temporary PNG directory |
+| `MAX_UPLOAD_BYTES` | no | `33554432` | Multipart body limit (32 MiB) |
+| `MAX_DOWNLOAD_BYTES` | no | `33554432` | PDF download limit by URL |
+| `HTTP_FETCH_TIMEOUT` | no | `120s` | Outgoing HTTP timeout when fetching by URL |
+| `FILE_TTL` | no | `1h` | How long before uploaded PDF and PNG are removed |
+| `RENDER_DPI` | no | `150` | DPI for `pdftoppm` |
 
 ## API
 
 ### POST `/v1/process`
 
-Ровно один режим тела запроса.
+Exactly one request body mode.
 
-#### 1) JSON — PDF по URL
+#### 1) JSON — PDF by URL
 
 `Content-Type: application/json`
 
@@ -47,11 +47,11 @@ go run ./cmd/pdf-extract
 }
 ```
 
-- **`options`** опционален.
-- **`render_image`**: по умолчанию `false` (только текст, меньше нагрузка). Если `true` — генерируется PNG.
-- **`crop_margins`**: по умолчанию `true`; учитывается только при `render_image: true`.
+- **`options`** is optional.
+- **`render_image`**: default `false` (text only, lower load). If `true`, a PNG is generated.
+- **`crop_margins`**: default `true`; only applies when `render_image: true`.
 
-Ответ `200`:
+`200` response:
 
 ```json
 {
@@ -61,7 +61,7 @@ go run ./cmd/pdf-extract
 }
 ```
 
-При `render_image: true`:
+With `render_image: true`:
 
 ```json
 {
@@ -74,16 +74,16 @@ go run ./cmd/pdf-extract
 }
 ```
 
-Страницы в `text` разделяются двойным переводом строки (`\n\n`), как в прежнем Python-сервисе.
+Pages in `text` are separated by a double newline (`\n\n`), as in the previous Python service.
 
-#### 2) Multipart — файл
+#### 2) Multipart — file
 
 `Content-Type: multipart/form-data`
 
-- Поле **`file`**: PDF (обязательно).
-- Поле **`options`**: JSON-строка с теми же ключами, что выше (опционально).
+- Field **`file`**: PDF (required).
+- Field **`options`**: JSON string with the same keys as above (optional).
 
-Пример:
+Example:
 
 ```bash
 curl -sS -X POST "$BASE/v1/process" \
@@ -94,43 +94,42 @@ curl -sS -X POST "$BASE/v1/process" \
 
 ### GET `/v1/files/{id}`
 
-Отдаёт PNG по `id` из ответа `image.id`. Файлы удаляются после `FILE_TTL`.
+Serves the PNG for `id` from the `image.id` response. Files are removed after `FILE_TTL`.
 
-### GET `/health` и GET `/v1/health`
+### GET `/health` and GET `/v1/health`
 
-Проверка живости и счётчики файлов в каталогах (как ориентир).
+Liveness check and file counts in directories (for orientation).
 
-## Ошибки
+## Errors
 
-Ответы с телом **`application/problem+json`** (RFC 7807), поля: `type`, `title`, `detail`, `status`.
+Responses use **`application/problem+json`** (RFC 7807) with fields: `type`, `title`, `detail`, `status`.
 
 ## Docker
 
-Скопируйте `.env.example` в `.env` и задайте `PUBLIC_BASE_URL`.
+Copy `.env.example` to `.env` and set `PUBLIC_BASE_URL`.
+
+The compose file attaches to an **external** Docker network named `traefik-public` (typical when Traefik already defines that network). For a **local** machine without Traefik, create it once, then start:
 
 ```bash
+docker network create traefik-public
 docker compose up --build -d
 ```
 
-Образ включает `poppler-utils`.
+On a host where Traefik already uses `traefik-public`, skip the `docker network create` step.
 
-### Traefik (ops3)
+The image includes `poppler-utils`.
 
-В репозитории инфраструктуры VDS:
+Optional: [deploy.sh](deploy.sh) is a **maintainer-only** helper for SSH-based deploys to a remote server. It expects `PUBLIC_BASE_URL` plus `REMOTE_USER` and `REMOTE_HOST_IP` in `.env` (see commented lines in `.env.example`).
 
-- `servers/3 - apps/services/traefik/config/sablier-apps.yml` — хост **`pdf-extract.l1979.ru`**, пути `/health`, `/v1/health`, префикс `/v1` (Sablier + бэкенд `http://pdf-extract:8000`).
-- `servers/3 - apps/services/traefik/config/middlewares.yml` — **`pdf-extract-buffering`**: до **32 MiB** тела запроса (как `MAX_UPLOAD_BYTES` по умолчанию).
+### Traefik (example)
 
-Нужна DNS-запись **`pdf-extract.l1979.ru`** на IP сервера с Traefik. В контейнере задайте **`PUBLIC_BASE_URL=https://pdf-extract.l1979.ru`**. После правок динамических файлов перезагрузите Traefik или дождитесь подхвата файлов провайдером.
+Point a router at this service (container listens on port `8000`). A typical rule exposes:
 
-## Безопасность загрузки по URL
+- `GET /health` and `GET /v1/health`
+- `PathPrefix` `/v1` for the API
 
-Запрещены хосты `localhost`, частные и link-local адреса по результатам DNS; разрешены только схемы `http`/`https`. При необходимости жёстче ограничьте исходящий доступ на уровне сети.
+Set **`PUBLIC_BASE_URL`** to the public HTTPS origin clients use (e.g. `https://pdf-api.example.com`), matching the router host.
 
-## Отличия от legacy pdf2image (Python / PyMuPDF)
+## License
 
-Текст и растровый вывод могут **слегка отличаться** от PyMuPDF/Poppler — перед cutover сравните на своих эталонных PDF.
-
-## Лицензия
-
-Внутренний проект; при публикации уточните лицензию.
+[MIT](LICENSE).
