@@ -1,5 +1,9 @@
 #!/bin/bash
-# Maintainer-only: deploy via SSH/scp to a remote host, then docker compose there.
+#
+# Emergency / legacy: upload full source tarball and run docker compose --build on the server.
+# Default path: push to main — GitHub Actions builds a GHCR image and deploys to /root/services/pdf-extract.
+# To push only compose + runtime .env (no build on server): scripts/sync-vds-service.sh
+#
 # Requires .env with PUBLIC_BASE_URL, REMOTE_USER, and REMOTE_HOST_IP.
 set -e
 
@@ -27,7 +31,7 @@ SSH_OPTS="-o ControlMaster=auto -o ControlPath=/tmp/pdf_extract_ssh_%h_%p -o Con
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOCAL_TEMP_DIR="/tmp/pdf_extract_deploy_${TIMESTAMP}"
-REMOTE_PROJECT_DIR="/data/projects/pdf-extract"
+REMOTE_PROJECT_DIR="/root/services/pdf-extract"
 
 echo -e "${BLUE}[INFO]${NC} Starting deployment preparation..."
 

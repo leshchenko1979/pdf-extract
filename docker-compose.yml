@@ -1,8 +1,6 @@
 services:
   pdf-extract:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+    image: ${GHCR_IMAGE:-ghcr.io/leshchenko1979/pdf-extract}:${IMAGE_TAG:-main}
     container_name: pdf-extract
     restart: unless-stopped
     mem_limit: 256mb

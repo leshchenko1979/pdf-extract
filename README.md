@@ -4,6 +4,8 @@ HTTP service in **Go**: extract text from PDFs (no OCR), optionally stitch pages
 
 Rendering and text extraction use **Poppler** (`pdftotext`, `pdftoppm`) inside the container.
 
+Machine-readable API description: [openapi.yaml](openapi.yaml).
+
 ## Quick start (local)
 
 Requirements: Go 1.26+, `poppler` on `PATH`.
@@ -25,7 +27,7 @@ go run ./cmd/pdf-extract
 | `MAX_DOWNLOAD_BYTES` | no | `33554432` | PDF download limit by URL |
 | `HTTP_FETCH_TIMEOUT` | no | `120s` | Outgoing HTTP timeout when fetching by URL |
 | `FILE_TTL` | no | `1h` | How long before uploaded PDF and PNG are removed |
-| `RENDER_DPI` | no | `150` | DPI for `pdftoppm` |
+| `RENDER_DPI` | no | `150` | DPI for `pdftoppm`; values outside **72–300** are treated as **150** |
 
 ## API
 
@@ -69,7 +71,7 @@ With `render_image: true`:
   "text": "…",
   "image": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "url": "https://your-host/v1/files/550e8400-e29b-41d4-a716-446655440000"
+    "url": "https://example.com/v1/files/550e8400-e29b-41d4-a716-446655440000"
   }
 }
 ```
@@ -104,22 +106,40 @@ Liveness check and file counts in directories (for orientation).
 
 Responses use **`application/problem+json`** (RFC 7807) with fields: `type`, `title`, `detail`, `status`.
 
+## CI deploy (recommended)
+
+Pushes to `main` that touch application or deploy files run [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): Go tests, Docker build, push to **GHCR** (`ghcr.io/<lowercase owner>/pdf-extract`, tags `main` and `sha-<short>`), then SSH to the server and `docker compose pull && docker compose up -d` in **`/root/services/pdf-extract`**.
+
+Configure these **repository secrets** (same names as a typical sibling project): `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, optional `SSH_PORT`, `GHCR_PULL_USER`, `GHCR_PULL_TOKEN` (token needs `read:packages` to pull the image if the package is private).
+
 ## Docker
 
 Copy `.env.example` to `.env` and set `PUBLIC_BASE_URL`.
 
-The compose file attaches to an **external** Docker network named `traefik-public` (typical when Traefik already defines that network). For a **local** machine without Traefik, create it once, then start:
+The compose file uses a prebuilt image by default (`GHCR_IMAGE` / `IMAGE_TAG`, see [docker-compose.yml](docker-compose.yml)). It attaches to an **external** Docker network named `traefik-public`.
+
+### Local development
+
+On a machine **without** that network, create it once, then build and run from the repo:
 
 ```bash
 docker network create traefik-public
 docker compose up --build -d
 ```
 
-On a host where Traefik already uses `traefik-public`, skip the `docker network create` step.
+On a host where Traefik already uses `traefik-public`, skip `docker network create`.
 
-The image includes `poppler-utils`.
+The runtime image includes `poppler-utils`.
 
-Optional: [deploy.sh](deploy.sh) is a **maintainer-only** helper for SSH-based deploys to a remote server. It expects `PUBLIC_BASE_URL` plus `REMOTE_USER` and `REMOTE_HOST_IP` in `.env` (see commented lines in `.env.example`).
+### Production server
+
+The host keeps **`docker-compose.yml`** and **`.env`** under `/root/services/pdf-extract` (no git checkout required for normal deploys). CI pulls the published image; the server does not build from source on each release.
+
+**Bootstrap or refresh** that directory from your laptop (compose + filtered `.env`, optional GHCR login on the server): run [`scripts/sync-vds-service.sh`](scripts/sync-vds-service.sh) with `SSH_HOST`, `SSH_USER`, and optional `SSH_KEY`, `SSH_PORT`, `REMOTE_DOCKER_DIR`, `GHCR_PULL_*` in `.env` (see [.env.example](.env.example)).
+
+If you previously deployed to `/data/projects/pdf-extract`, copy `docker-compose.yml` and `.env` to `/root/services/pdf-extract`, run `docker compose pull && docker compose up -d`, verify `/health`, then remove the old tree when satisfied.
+
+**Emergency / legacy:** [deploy.sh](deploy.sh) uploads a full tarball and runs `docker compose --build` on the server. Prefer CI or `sync-vds-service.sh` for routine updates.
 
 ### Traefik (example)
 
@@ -129,6 +149,14 @@ Point a router at this service (container listens on port `8000`). A typical rul
 - `PathPrefix` `/v1` for the API
 
 Set **`PUBLIC_BASE_URL`** to the public HTTPS origin clients use (e.g. `https://pdf-api.example.com`), matching the router host.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

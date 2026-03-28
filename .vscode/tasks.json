@@ -2,9 +2,59 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Deploy to Production",
+            "label": "Sync compose and env to VDS",
             "type": "shell",
-            "command": "./deploy.sh",
+            "command": "bash",
+            "args": [
+                "${workspaceFolder}/scripts/sync-vds-service.sh"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Go tests",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "test",
+                "./...",
+                "-count=1"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Manual deploy (deploy.sh)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "${workspaceFolder}/deploy.sh"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": false
@@ -17,9 +67,16 @@
             "problemMatcher": []
         },
         {
-            "label": "SSH to Remote Server",
+            "label": "SSH to remote (deploy.sh hosts)",
             "type": "shell",
-            "command": "source .env && ssh ${REMOTE_USER}@${REMOTE_HOST_IP}",
+            "command": "bash",
+            "args": [
+                "-c",
+                "set -a && source .env && set +a && ssh \"$REMOTE_USER@$REMOTE_HOST_IP\""
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": false
@@ -34,7 +91,14 @@
         {
             "label": "Test process URL (text only)",
             "type": "shell",
-            "command": "set -a && source .env && set +a && curl -sS -X POST \"${PUBLIC_BASE_URL}/v1/process\" -H \"Content-Type: application/json\" -d '{\"source\":{\"type\":\"url\",\"url\":\"${input:pdfUrl}\"},\"options\":{\"render_image\":false}}'",
+            "command": "bash",
+            "args": [
+                "-c",
+                "set -a && source .env && set +a && curl -sS -X POST \"${PUBLIC_BASE_URL}/v1/process\" -H \"Content-Type: application/json\" -d '{\"source\":{\"type\":\"url\",\"url\":\"${input:pdfUrl}\"},\"options\":{\"render_image\":false}}'"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": false
@@ -49,7 +113,14 @@
         {
             "label": "Test process URL (with PNG)",
             "type": "shell",
-            "command": "set -a && source .env && set +a && curl -sS -X POST \"${PUBLIC_BASE_URL}/v1/process\" -H \"Content-Type: application/json\" -d '{\"source\":{\"type\":\"url\",\"url\":\"${input:pdfUrl}\"},\"options\":{\"render_image\":true,\"crop_margins\":true}}'",
+            "command": "bash",
+            "args": [
+                "-c",
+                "set -a && source .env && set +a && curl -sS -X POST \"${PUBLIC_BASE_URL}/v1/process\" -H \"Content-Type: application/json\" -d '{\"source\":{\"type\":\"url\",\"url\":\"${input:pdfUrl}\"},\"options\":{\"render_image\":true,\"crop_margins\":true}}'"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": false
@@ -64,7 +135,14 @@
         {
             "label": "Debug process URL (verbose)",
             "type": "shell",
-            "command": "set -a && source .env && set +a && curl -sS -v -X POST \"${PUBLIC_BASE_URL}/v1/process\" -H \"Content-Type: application/json\" -d '{\"source\":{\"type\":\"url\",\"url\":\"${input:pdfUrl}\"},\"options\":{\"render_image\":false}}'",
+            "command": "bash",
+            "args": [
+                "-c",
+                "set -a && source .env && set +a && curl -sS -v -X POST \"${PUBLIC_BASE_URL}/v1/process\" -H \"Content-Type: application/json\" -d '{\"source\":{\"type\":\"url\",\"url\":\"${input:pdfUrl}\"},\"options\":{\"render_image\":false}}'"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": false
