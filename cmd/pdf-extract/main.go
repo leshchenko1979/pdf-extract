@@ -25,7 +25,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := httpserver.ListenAndServe(cfg, log); err != nil {
+	if _, _, err := httpserver.Run(cfg, log); err != nil {
 		log.Error("server", "err", err)
 		os.Exit(1)
 	}

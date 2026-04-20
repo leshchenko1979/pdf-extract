@@ -1,13 +1,18 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"mime"
+	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -129,4 +134,64 @@ func ListenAndServe(cfg *config.Config, log *slog.Logger) error {
 	handler := NewRouter(cfg, svc)
 	log.Info("listening", "addr", cfg.ListenAddr)
 	return http.ListenAndServe(cfg.ListenAddr, handler)
+}
+
+// Shutdown drains all pending storage operations up to the given duration.
+func (s *Service) Shutdown(d time.Duration) {
+	if s == nil || s.Store == nil {
+		return
+	}
+	s.Store.Shutdown(d)
+}
+
+// Run starts the HTTP server and orchestrates graceful shutdown on SIGTERM.
+func Run(cfg *config.Config, log *slog.Logger) (*Service, *http.Server, error) {
+	store := storage.New(cfg.FileTTL)
+	svc := &Service{
+		Cfg:         cfg,
+		FetchClient: NewFetchClient(cfg.HTTPFetchTimeout),
+		Store:       store,
+	}
+	handler := NewRouter(cfg, svc)
+
+	srv := &http.Server{
+		Addr:    cfg.ListenAddr,
+		Handler: handler,
+	}
+
+	ln, err := net.Listen("tcp", cfg.ListenAddr)
+	if err != nil {
+		return svc, srv, err
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		log.Info("listening", "addr", cfg.ListenAddr)
+		errCh <- srv.Serve(ln)
+	}()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, os.Interrupt)
+
+	select {
+	case err := <-errCh:
+		return svc, srv, err
+	case <-sigCh:
+		log.Info("shutting down")
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Warn("server shutdown", "err", err)
+		}
+		svc.Shutdown(5 * time.Second)
+		select {
+		case err := <-errCh:
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return svc, srv, err
+			}
+		default:
+		}
+		log.Info("shutdown complete")
+		return svc, srv, nil
+	}
 }
